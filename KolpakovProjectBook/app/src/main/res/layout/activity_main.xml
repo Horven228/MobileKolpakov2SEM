@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <Button
+            android:id="@+id/buttonBooks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Показать список книг" />
+
+        <EditText
+            android:id="@+id/editTextBookId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="ID книги"
+            android:inputType="number" />
+
+        <Button
+            android:id="@+id/buttonBookById"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Показать книгу по ID" />
+
+        <Button
+            android:id="@+id/buttonSaveBook"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Сохранить книгу в БД" />
+
+        <Button
+            android:id="@+id/buttonFavorites"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Показать избранное" />
+
+        <Button
+            android:id="@+id/buttonRemoveFavorite"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Удалить из избранного по ID" />
+
+        <Button
+            android:id="@+id/buttonAddFavorite"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Добавить в избранное" />
+
+        <Button
+            android:id="@+id/buttonCurrency"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Получить курс валют" />
+
+        <Button
+            android:id="@+id/buttonRecognize"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Распознать обложку по ID" />
+
+        <Button
+            android:id="@+id/buttonLogout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Выйти" />
+
+        <TextView
+            android:id="@+id/textViewResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textSize="16sp" />
+    </LinearLayout>
+</ScrollView>
