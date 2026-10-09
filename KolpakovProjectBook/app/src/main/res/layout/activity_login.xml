@@ -9,23 +9,33 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Авторизация"
-        android:textSize="24sp"
+        android:text="Букинист"
+        android:textSize="32sp"
+        android:textStyle="bold"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="24dp" />
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Ваша следующая история начинается здесь"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="32dp" />
 
     <EditText
         android:id="@+id/editTextLogin"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Логин" />
+        android:hint="Email"
+        android:inputType="textEmailAddress" />
 
     <EditText
         android:id="@+id/editTextPassword"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Пароль"
-        android:inputType="textPassword" />
+        android:inputType="textPassword"
+        android:layout_marginTop="8dp" />
 
     <Button
         android:id="@+id/buttonLogin"
@@ -35,10 +45,27 @@
         android:text="Войти" />
 
     <TextView
+        android:id="@+id/textViewRegister"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Нет аккаунта? Регистрация"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="16dp"
+        android:padding="8dp" />
+
+    <Button
+        android:id="@+id/buttonGuest"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="Войти как гость" />
+
+    <TextView
         android:id="@+id/textViewError"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:textColor="#CC0000"
         android:textSize="14sp" />
+
 </LinearLayout>

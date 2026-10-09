@@ -2,7 +2,6 @@ package ru.mirea.kolpakovap.kolpakovprojectbook.presentation;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -11,32 +10,44 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.List;
 
+import ru.mirea.kolpakovap.data.network.NetworkApiImpl;
+import ru.mirea.kolpakovap.data.repository.AuthRepositoryImpl;
+import ru.mirea.kolpakovap.data.repository.BookRepositoryImpl;
+import ru.mirea.kolpakovap.data.repository.CoverRecognizerImpl;
+import ru.mirea.kolpakovap.data.repository.CurrencyRepositoryImpl;
+import ru.mirea.kolpakovap.data.storage.room.RoomBookStorage;
+import ru.mirea.kolpakovap.domain.models.Book;
+import ru.mirea.kolpakovap.domain.repository.AuthRepository;
+import ru.mirea.kolpakovap.domain.repository.BookRepository;
+import ru.mirea.kolpakovap.domain.repository.CoverRecognizer;
+import ru.mirea.kolpakovap.domain.repository.CurrencyRepository;
+import ru.mirea.kolpakovap.domain.repository.NetworkApi;
+import ru.mirea.kolpakovap.domain.usecases.AddToFavoritesUseCase;
+import ru.mirea.kolpakovap.domain.usecases.GetBookByIdUseCase;
+import ru.mirea.kolpakovap.domain.usecases.GetBooksFromNetworkUseCase;
+import ru.mirea.kolpakovap.domain.usecases.GetBooksUseCase;
+import ru.mirea.kolpakovap.domain.usecases.GetCurrencyUseCase;
+import ru.mirea.kolpakovap.domain.usecases.GetFavoriteBooksUseCase;
+import ru.mirea.kolpakovap.domain.usecases.LogoutUseCase;
+import ru.mirea.kolpakovap.domain.usecases.RecognizeCoverUseCase;
+import ru.mirea.kolpakovap.domain.usecases.RemoveFromFavoritesUseCase;
+import ru.mirea.kolpakovap.domain.usecases.SaveBookUseCase;
 import ru.mirea.kolpakovap.kolpakovprojectbook.R;
-import ru.mirea.kolpakovap.kolpakovprojectbook.data.repository.BookRepositoryImpl;
-import ru.mirea.kolpakovap.kolpakovprojectbook.data.repository.CoverRecognizerImpl;
-import ru.mirea.kolpakovap.kolpakovprojectbook.data.repository.CurrencyRepositoryImpl;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.models.Book;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.repository.BookRepository;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.repository.CoverRecognizer;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.repository.CurrencyRepository;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.usecases.AddToFavoritesUseCase;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.usecases.GetBookByIdUseCase;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.usecases.GetBooksUseCase;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.usecases.GetCurrencyUseCase;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.usecases.GetFavoriteBooksUseCase;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.usecases.RecognizeCoverUseCase;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.usecases.RemoveFromFavoritesUseCase;
-import ru.mirea.kolpakovap.kolpakovprojectbook.domain.usecases.SaveBookUseCase;
 
-// Главный экран приложения.
+// Главный экран приложения. Набор кнопок, каждая из которых
+// демонстрирует отдельный сценарий: работа с БД (Room), сеть (NetworkApi),
+// SharedPreferences (сессия пользователя), распознавание обложек.
 public class MainActivity extends AppCompatActivity {
 
-    // Репозитории и распознаватель.
+    // Репозитории и сеть. Типы — интерфейсы из domain, чтобы
+    // presentation не зависел от конкретных реализаций.
     private BookRepository bookRepository;
     private CurrencyRepository currencyRepository;
     private CoverRecognizer coverRecognizer;
+    private AuthRepository authRepository;
+    private NetworkApi networkApi;
 
-    // TextView для вывода результата и EditText для ввода ID.
+    // UI-элементы: вывод результата и поле ввода ID.
     private TextView textViewResult;
     private EditText editTextBookId;
 
@@ -46,15 +57,29 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Создаём реализации репозиториев.
-        bookRepository = new BookRepositoryImpl();
+        // BookRepositoryImpl теперь принимает RoomBookStorage — данные
+        // хранятся в SQLite через Room, а не в памяти.
+        bookRepository = new BookRepositoryImpl(new RoomBookStorage(this));
         currencyRepository = new CurrencyRepositoryImpl();
         coverRecognizer = new CoverRecognizerImpl();
+        authRepository = new AuthRepositoryImpl(this);
+        networkApi = new NetworkApiImpl();
 
-        // Находим TextView и EditText.
+        // Первичное заполнение БД тестовыми книгами — только если база пуста.
+        // Делаем в отдельном потоке, потому что Room запрещает работу в UI-потоке.
+        new Thread(() -> {
+            if (bookRepository.getBooks().isEmpty()) {
+                bookRepository.saveBook(new Book(1, "Война и мир", "Л. Н. Толстой"));
+                bookRepository.saveBook(new Book(2, "Преступление и наказание", "Ф. М. Достоевский"));
+                bookRepository.saveBook(new Book(3, "Мастер и Маргарита", "М. А. Булгаков"));
+                bookRepository.saveBook(new Book(4, "1984", "Джордж Оруэлл"));
+            }
+        }).start();
+
+        // Находим UI-элементы.
         textViewResult = findViewById(R.id.textViewResult);
         editTextBookId = findViewById(R.id.editTextBookId);
 
-        // Находим все кнопки.
         Button btnBooks = findViewById(R.id.buttonBooks);
         Button btnBookById = findViewById(R.id.buttonBookById);
         Button btnSaveBook = findViewById(R.id.buttonSaveBook);
@@ -62,133 +87,111 @@ public class MainActivity extends AppCompatActivity {
         Button btnFavorites = findViewById(R.id.buttonFavorites);
         Button btnRemoveFavorite = findViewById(R.id.buttonRemoveFavorite);
         Button btnCurrency = findViewById(R.id.buttonCurrency);
+        Button btnNetworkBooks = findViewById(R.id.buttonNetworkBooks);
         Button btnRecognize = findViewById(R.id.buttonRecognize);
         Button btnLogout = findViewById(R.id.buttonLogout);
 
-        // Обработчик кнопки «Список книг».
-        btnBooks.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                List<Book> books = new GetBooksUseCase(bookRepository).execute();
-                StringBuilder sb = new StringBuilder("Книги:\n");
-                for (Book b : books) sb.append(b.toString()).append("\n");
-                textViewResult.setText(sb.toString());
-            }
+        // Список книг — вызов use-case, который дёргает репозиторий,
+        // а тот через RoomBookStorage читает данные из SQLite.
+        btnBooks.setOnClickListener(v -> {
+            List<Book> books = new GetBooksUseCase(bookRepository).execute();
+            StringBuilder sb = new StringBuilder("Книги:\n");
+            for (Book b : books) sb.append(b.toString()).append("\n");
+            textViewResult.setText(sb.toString());
         });
 
-        // Обработчик кнопки «Показать книгу по ID».
-        btnBookById.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Book book = findBookById();
-                if (book == null) return;
-                textViewResult.setText("Книга: " + book.toString());
-            }
+        // Книга по ID — вспомогательный метод findBookById() читает
+        // число из EditText и возвращает объект Book или null.
+        btnBookById.setOnClickListener(v -> {
+            Book book = findBookById();
+            if (book == null) return;
+            textViewResult.setText("Книга: " + book.toString());
         });
 
-        // Обработчик кнопки «Сохранить в БД».
-        btnSaveBook.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Book book = findBookById();
-                if (book == null) return;
-                boolean ok = new SaveBookUseCase(bookRepository).execute(book);
-                if (ok) {
-                    textViewResult.setText("Сохранено в БД: " + book.toString());
-                } else {
-                    textViewResult.setText("Не удалось сохранить");
-                }
-            }
+        // Сохранить в БД — SaveBookUseCase сначала проверяет,
+        // что у книги непустое название, и только потом делегирует в репозиторий.
+        btnSaveBook.setOnClickListener(v -> {
+            Book book = findBookById();
+            if (book == null) return;
+            boolean ok = new SaveBookUseCase(bookRepository).execute(book);
+            textViewResult.setText(ok ? "Сохранено в БД: " + book : "Не удалось сохранить");
         });
 
-        // Обработчик кнопки «Добавить в избранное».
-        btnAddFavorite.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Book book = findBookById();
-                if (book == null) return;
-                boolean ok = new AddToFavoritesUseCase(bookRepository).execute(book);
-                if (ok) {
-                    textViewResult.setText("В избранном: " + book.toString());
-                } else {
-                    textViewResult.setText("Не удалось добавить");
-                }
-            }
+        // Добавить в избранное — AddToFavoritesUseCase помечает книгу
+        // флагом isFavorite и добавляет её в список избранного.
+        btnAddFavorite.setOnClickListener(v -> {
+            Book book = findBookById();
+            if (book == null) return;
+            boolean ok = new AddToFavoritesUseCase(bookRepository).execute(book);
+            textViewResult.setText(ok ? "В избранном: " + book : "Не удалось добавить");
         });
 
-        // Обработчик кнопки «Показать избранное».
-        btnFavorites.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Получаем список избранных книг через use-case.
-                List<Book> favorites = new GetFavoriteBooksUseCase(bookRepository).execute();
-                // Если список пуст — сообщаем.
-                if (favorites.isEmpty()) {
-                    textViewResult.setText("Избранное пусто");
-                    return;
-                }
-                // Формируем строку для вывода.
-                StringBuilder sb = new StringBuilder("Избранное:\n");
-                for (Book b : favorites) sb.append(b.toString()).append("\n");
-                // Отображаем результат.
-                textViewResult.setText(sb.toString());
+        // Показать избранное — GetFavoriteBooksUseCase возвращает
+        // список книг, помеченных как избранные.
+        btnFavorites.setOnClickListener(v -> {
+            List<Book> favorites = new GetFavoriteBooksUseCase(bookRepository).execute();
+            if (favorites.isEmpty()) {
+                textViewResult.setText("Избранное пусто");
+                return;
             }
+            StringBuilder sb = new StringBuilder("Избранное:\n");
+            for (Book b : favorites) sb.append(b.toString()).append("\n");
+            textViewResult.setText(sb.toString());
         });
 
-        // Обработчик кнопки «Удалить из избранного по ID».
-        btnRemoveFavorite.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Читаем ID из поля.
-                String input = editTextBookId.getText().toString().trim();
-                if (input.isEmpty()) {
-                    textViewResult.setText("Введите ID книги");
-                    return;
-                }
-                int id = Integer.parseInt(input);
-                // Вызываем use-case удаления из избранного.
-                boolean ok = new RemoveFromFavoritesUseCase(bookRepository).execute(id);
-                // Показываем результат.
-                if (ok) {
-                    textViewResult.setText("Удалено из избранного: ID " + id);
-                } else {
-                    textViewResult.setText("Книга с ID " + id + " не найдена в избранном");
-                }
+        // Удалить из избранного по ID — читаем ID, вызываем use-case,
+        // который попросит репозиторий удалить книгу из списка избранного.
+        btnRemoveFavorite.setOnClickListener(v -> {
+            String input = editTextBookId.getText().toString().trim();
+            if (input.isEmpty()) {
+                textViewResult.setText("Введите ID книги");
+                return;
             }
+            int id = Integer.parseInt(input);
+            boolean ok = new RemoveFromFavoritesUseCase(bookRepository).execute(id);
+            textViewResult.setText(ok
+                    ? "Удалено из избранного: ID " + id
+                    : "Книга с ID " + id + " не найдена в избранном");
         });
 
-        // Обработчик кнопки «Получить курс валют».
-        btnCurrency.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String rate = new GetCurrencyUseCase(currencyRepository).execute();
-                textViewResult.setText("Курс: " + rate);
-            }
+        // Получить курс валют — CurrencyRepositoryImpl возвращает
+        // захардкоженную JSON-строку (имитация внешнего API).
+        btnCurrency.setOnClickListener(v -> {
+            String rate = new GetCurrencyUseCase(currencyRepository).execute();
+            textViewResult.setText("Курс: " + rate);
         });
 
-        // Обработчик кнопки «Распознать обложку по ID».
-        btnRecognize.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Book book = findBookById();
-                if (book == null) return;
-                String result = new RecognizeCoverUseCase(coverRecognizer).execute(book);
-                textViewResult.setText(result);
-            }
+        // Получить книги из сети (мок) — NetworkApiImpl возвращает
+        // строку в формате JSON, имитирующую ответ сервера.
+        btnNetworkBooks.setOnClickListener(v -> {
+            String json = new GetBooksFromNetworkUseCase(networkApi).execute();
+            textViewResult.setText("JSON от NetworkApi:\n" + json);
         });
 
-        // Обработчик кнопки «Выйти».
-        btnLogout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                startActivity(intent);
-                finish();
-            }
+        // Распознать обложку по ID — RecognizeCoverUseCase делегирует
+        // в CoverRecognizerImpl, который имитирует вывод ML-модели.
+        btnRecognize.setOnClickListener(v -> {
+            Book book = findBookById();
+            if (book == null) return;
+            String result = new RecognizeCoverUseCase(coverRecognizer).execute(book);
+            textViewResult.setText(result);
+        });
+
+        // Выйти — сбрасываем сессию Firebase + чистим SharedPreferences.
+        // Флаги NEW_TASK | CLEAR_TASK полностью очищают стек Activity,
+        // чтобы пользователь не мог вернуться на MainActivity кнопкой «Назад».
+        btnLogout.setOnClickListener(v -> {
+            new LogoutUseCase(authRepository).execute();
+
+            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
         });
     }
 
-    // Вспомогательный метод: читает ID, находит книгу.
+    // Вспомогательный метод: читает ID из EditText, ищет книгу через use-case.
+    // Возвращает null и пишет сообщение об ошибке, если ID пуст или книга не найдена.
     private Book findBookById() {
         String input = editTextBookId.getText().toString().trim();
         if (input.isEmpty()) {

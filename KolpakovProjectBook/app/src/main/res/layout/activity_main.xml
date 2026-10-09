@@ -60,6 +60,12 @@
             android:text="Получить курс валют" />
 
         <Button
+            android:id="@+id/buttonNetworkBooks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Получить книги из сети (мок)" />
+
+        <Button
             android:id="@+id/buttonRecognize"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
